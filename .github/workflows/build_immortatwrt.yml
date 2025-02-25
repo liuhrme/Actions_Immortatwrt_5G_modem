@@ -77,39 +77,12 @@ jobs:
       run: |
         cd openwrt
         make -j$(($(nproc) + 1)) || make -j1 V=s
-
-    - name: 安装 GitHub CLI
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y curl ca-certificates
-        curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-        sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-        sudo apt-get update
-        sudo apt-get install gh -y
+        echo "FIRMWARE_PATH=openwrt/bin/targets/*/*" >> $GITHUB_ENV
 
     - name: 发布固件
       uses: softprops/action-gh-release@v1
       with:
         tag_name: nightly-${{ github.run_id }}
-        files: openwrt/bin/targets/**/*
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: 清理旧版本
-      run: |
-        echo "正在清理旧版本..."
-        all_tags=$(gh release list --limit 100 | grep '^nightly-' | awk '{print $1}')
-        count=$(echo "$all_tags" | wc -l)
-
-        if [ "$count" -gt 2 ]; then
-          echo "找到 $count 个历史版本，保留最新 2 个"
-          to_delete=$(echo "$all_tags" | tail -n +3)
-          echo "$to_delete" | while read -r tag; do
-            gh release delete "$tag" --yes || true
-          done
-        else
-          echo "无需清理，当前版本数：$count"
-        fi
+        files: ${{ env.FIRMWARE_PATH }}/*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
